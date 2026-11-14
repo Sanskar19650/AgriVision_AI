@@ -1,0 +1,410 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Farmer or administrator profile with Maharashtra address details.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 180 },
+        "mobile": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["farmer", "admin"] },
+        "state": { "type": "string", "maxLength": 80 },
+        "district": { "type": "string", "maxLength": 80 },
+        "taluka": { "type": "string", "maxLength": 80 },
+        "village": { "type": "string", "maxLength": 80 },
+        "address": { "type": "string", "maxLength": 300 },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email", "role", "createdAt", "updatedAt"]
+    },
+    "Farm": {
+      "title": "Farm",
+      "description": "Registered agricultural farm owned by a farmer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "satbaraNumber": { "type": "string", "maxLength": 60 },
+        "surveyNumber": { "type": "string", "maxLength": 60 },
+        "gatNumber": { "type": "string", "maxLength": 60 },
+        "village": { "type": "string", "maxLength": 80 },
+        "taluka": { "type": "string", "maxLength": 80 },
+        "district": { "type": "string", "maxLength": 80 },
+        "state": { "type": "string", "maxLength": 80 },
+        "areaValue": { "type": "number" },
+        "areaUnit": { "type": "string", "enum": ["Acres", "Hectares", "Guntha"] },
+        "soilType": { "type": "string", "maxLength": 60 },
+        "waterSource": { "type": "string", "maxLength": 80 },
+        "irrigationMethod": { "type": "string", "maxLength": 80 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmName", "areaValue", "areaUnit", "createdAt", "updatedAt"]
+    },
+    "Plot": {
+      "title": "Plot",
+      "description": "Sub-plot inside a farm.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "plotName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "areaAcres": { "type": "number" },
+        "assignedCrop": { "type": "string", "maxLength": 80 },
+        "soilType": { "type": "string", "maxLength": 60 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "plotName", "areaAcres", "createdAt", "updatedAt"]
+    },
+    "LandRecord": {
+      "title": "LandRecord",
+      "description": "Maharashtra 7/12 registration and GeoJSON boundary record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "satbaraNumber": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "surveyNumber": { "type": "string", "maxLength": 60 },
+        "gatNumber": { "type": "string", "maxLength": 60 },
+        "village": { "type": "string", "maxLength": 80 },
+        "taluka": { "type": "string", "maxLength": 80 },
+        "district": { "type": "string", "maxLength": 80 },
+        "state": { "type": "string", "maxLength": 80 },
+        "verificationStatus": { "type": "string", "enum": ["pending_manual", "verified", "needs_review"] },
+        "calculatedAcres": { "type": "number" },
+        "geojsonText": { "type": "string", "maxLength": 20000 },
+        "ocrNotes": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "satbaraNumber", "verificationStatus", "createdAt", "updatedAt"]
+    },
+    "Crop": {
+      "title": "Crop",
+      "description": "Active or harvested crop lifecycle record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "plotId": { "type": "string", "maxLength": 128 },
+        "cropName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "variety": { "type": "string", "maxLength": 80 },
+        "sowingDate": { "type": "string", "maxLength": 30 },
+        "expectedHarvestDate": { "type": "string", "maxLength": 30 },
+        "cultivationArea": { "type": "number" },
+        "season": { "type": "string", "maxLength": 40 },
+        "seedQuantityKg": { "type": "number" },
+        "stage": { "type": "string", "maxLength": 60 },
+        "healthStatus": { "type": "string", "enum": ["Healthy", "Monitor", "At Risk", "Harvested"] },
+        "yieldTonnes": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "cropName", "stage", "healthStatus", "createdAt", "updatedAt"]
+    },
+    "CropActivity": {
+      "title": "CropActivity",
+      "description": "Lifecycle stage event recorded for a crop.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "cropId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "stage": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "activityDate": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "cropId", "stage", "createdAt", "updatedAt"]
+    },
+    "SoilReading": {
+      "title": "SoilReading",
+      "description": "Soil moisture, pH, temperature, humidity, and NPK measurement.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "plotId": { "type": "string", "maxLength": 128 },
+        "deviceId": { "type": "string", "maxLength": 80 },
+        "source": { "type": "string", "enum": ["arduino", "manual", "simulated"] },
+        "moisture": { "type": "number" },
+        "temperature": { "type": "number" },
+        "humidity": { "type": "number" },
+        "ph": { "type": "number" },
+        "nitrogen": { "type": "number" },
+        "phosphorus": { "type": "number" },
+        "potassium": { "type": "number" },
+        "ec": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "source", "moisture", "ph", "nitrogen", "phosphorus", "potassium", "createdAt", "updatedAt"]
+    },
+    "IotDevice": {
+      "title": "IotDevice",
+      "description": "Registered Arduino Uno/Mega field telemetry node.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "deviceId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "controller": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["online", "offline", "simulated"] },
+        "lastSeen": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "deviceId", "controller", "status", "createdAt", "updatedAt"]
+    },
+    "DiseaseDetection": {
+      "title": "DiseaseDetection",
+      "description": "CNN crop disease inference record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "maxLength": 128 },
+        "cropType": { "type": "string", "maxLength": 60 },
+        "predictedDisease": { "type": "string", "maxLength": 120 },
+        "confidence": { "type": "number" },
+        "engineUsed": { "type": "string", "maxLength": 80 },
+        "treatment": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "cropType", "predictedDisease", "confidence", "createdAt", "updatedAt"]
+    },
+    "DamageDetection": {
+      "title": "DamageDetection",
+      "description": "YOLOv8 crop damage inference record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "maxLength": 128 },
+        "damageCategory": { "type": "string", "maxLength": 120 },
+        "detectionCount": { "type": "number" },
+        "confidence": { "type": "number" },
+        "severity": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "damageCategory", "detectionCount", "confidence", "createdAt", "updatedAt"]
+    },
+    "CropRecommendation": {
+      "title": "CropRecommendation",
+      "description": "Random Forest crop suitability recommendation record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "maxLength": 128 },
+        "recommendedCrop": { "type": "string", "maxLength": 80 },
+        "confidence": { "type": "number" },
+        "nitrogen": { "type": "number" },
+        "phosphorus": { "type": "number" },
+        "potassium": { "type": "number" },
+        "ph": { "type": "number" },
+        "rainfall": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "recommendedCrop", "confidence", "createdAt", "updatedAt"]
+    },
+    "WeatherRecord": {
+      "title": "WeatherRecord",
+      "description": "Cached weather snapshot for a registered farm.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "temperatureC": { "type": "number" },
+        "humidity": { "type": "number" },
+        "windSpeedKmh": { "type": "number" },
+        "rainProbabilityPct": { "type": "number" },
+        "condition": { "type": "string", "maxLength": 80 },
+        "source": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "temperatureC", "condition", "createdAt", "updatedAt"]
+    },
+    "IrrigationRecord": {
+      "title": "IrrigationRecord",
+      "description": "Irrigation log or scheduled irrigation cycle.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "method": { "type": "string", "maxLength": 60 },
+        "waterLiters": { "type": "number" },
+        "durationMinutes": { "type": "number" },
+        "scheduledDate": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "method", "waterLiters", "status", "createdAt", "updatedAt"]
+    },
+    "FertilizerRecord": {
+      "title": "FertilizerRecord",
+      "description": "Fertilizer and pesticide application log with expenses.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "productName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "category": { "type": "string", "maxLength": 60 },
+        "quantity": { "type": "string", "maxLength": 40 },
+        "applicationDate": { "type": "string", "maxLength": 30 },
+        "applicationMethod": { "type": "string", "maxLength": 80 },
+        "cropName": { "type": "string", "maxLength": 80 },
+        "costInr": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "farmId", "productName", "category", "costInr", "createdAt", "updatedAt"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Agricultural alert or reminder.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 60 },
+        "severity": { "type": "string", "enum": ["info", "warning", "critical"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "message": { "type": "string", "maxLength": 600 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "category", "severity", "title", "read", "createdAt", "updatedAt"]
+    },
+    "BlockchainRecord": {
+      "title": "BlockchainRecord",
+      "description": "SHA-256 document verification anchor.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "maxLength": 128 },
+        "documentType": { "type": "string", "maxLength": 80 },
+        "documentTitle": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "sha256Hash": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$" },
+        "txHash": { "type": "string", "maxLength": 128 },
+        "networkMode": { "type": "string", "maxLength": 60 },
+        "verified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "documentType", "documentTitle", "sha256Hash", "txHash", "verified", "createdAt", "updatedAt"]
+    },
+    "ReportRecord": {
+      "title": "ReportRecord",
+      "description": "Generated agricultural report metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "farmId": { "type": "string", "maxLength": 128 },
+        "reportType": { "type": "string", "maxLength": 60 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "reportType", "title", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private farmer/admin user profiles."
+    },
+    "/farms/{farmId}": {
+      "schema": { "$ref": "#/entities/Farm" },
+      "description": "Agricultural farms owned by users."
+    },
+    "/plots/{plotId}": {
+      "schema": { "$ref": "#/entities/Plot" },
+      "description": "Farm sub-plots."
+    },
+    "/landRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/LandRecord" },
+      "description": "Maharashtra 7/12 land registration and GeoJSON boundaries."
+    },
+    "/crops/{cropId}": {
+      "schema": { "$ref": "#/entities/Crop" },
+      "description": "Crop lifecycle records."
+    },
+    "/cropActivities/{activityId}": {
+      "schema": { "$ref": "#/entities/CropActivity" },
+      "description": "Crop activity logs."
+    },
+    "/soilReadings/{readingId}": {
+      "schema": { "$ref": "#/entities/SoilReading" },
+      "description": "Soil moisture, pH, and NPK sensor readings."
+    },
+    "/iotDevices/{deviceId}": {
+      "schema": { "$ref": "#/entities/IotDevice" },
+      "description": "Arduino IoT device registrations."
+    },
+    "/diseaseDetections/{detectionId}": {
+      "schema": { "$ref": "#/entities/DiseaseDetection" },
+      "description": "CNN plant disease inference logs."
+    },
+    "/damageDetections/{detectionId}": {
+      "schema": { "$ref": "#/entities/DamageDetection" },
+      "description": "YOLOv8 crop damage detection logs."
+    },
+    "/cropRecommendations/{recommendationId}": {
+      "schema": { "$ref": "#/entities/CropRecommendation" },
+      "description": "Random Forest crop recommendations."
+    },
+    "/weatherRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/WeatherRecord" },
+      "description": "Farm weather snapshots."
+    },
+    "/irrigationRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/IrrigationRecord" },
+      "description": "Irrigation history and schedules."
+    },
+    "/fertilizerRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/FertilizerRecord" },
+      "description": "Fertilizer and pesticide applications."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/NotificationItem" },
+      "description": "Agricultural alerts and reminders."
+    },
+    "/blockchainRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/BlockchainRecord" },
+      "description": "SHA-256 agricultural document verification records."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/ReportRecord" },
+      "description": "Generated agricultural reports."
+    }
+  }
+}

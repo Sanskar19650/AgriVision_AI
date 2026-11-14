@@ -1,0 +1,6 @@
+{
+  "name": "AgriVision AI",
+  "description": "AI-Powered Agricultural Monitoring, Maharashtra 7/12 Land Mapping, Arduino IoT Telemetry, Crop Disease & Damage Vision, and Blockchain Document Verification Platform.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

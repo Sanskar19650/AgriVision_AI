@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+:root {
+  --agri-green: #2E7D32;
+  --agri-green-hover: #246628;
+  --agri-green-secondary: #66BB6A;
+  --agri-green-light: #E8F5E9;
+  --agri-bg: #F5F7F5;
+  --agri-surface: #FFFFFF;
+  --agri-text: #263238;
+  --agri-muted: #546E7A;
+  --agri-border: #E0E0E0;
+  --agri-warning: #D97706;
+  --agri-danger: #E53935;
+}
+
+@layer base {
+  html {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--agri-bg);
+    color: var(--agri-text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .font-mono, code, pre {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Print optimization for Reports PDF export */
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body {
+    background: #FFFFFF !important;
+  }
+}

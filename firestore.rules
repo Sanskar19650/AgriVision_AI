@@ -1,0 +1,480 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Hardened Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+    function isAdmin() {
+      return isVerified() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'jamdadesanskar14@gmail.com'
+      );
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function ownsFarm(farmId) {
+      return isValidId(farmId) &&
+        exists(/databases/$(database)/documents/farms/$(farmId)) &&
+        get(/databases/$(database)/documents/farms/$(farmId)).data.userId == request.auth.uid;
+    }
+
+    // --- Validation Helpers ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'fullName', 'email', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'email', 'mobile', 'role', 'state', 'district', 'taluka', 'village', 'address', 'photoUrl', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 180
+        && data.role in ['farmer', 'admin']
+        && (!('mobile' in data) || (data.mobile is string && data.mobile.size() <= 20))
+        && (!('state' in data) || (data.state is string && data.state.size() <= 80))
+        && (!('district' in data) || (data.district is string && data.district.size() <= 80))
+        && (!('taluka' in data) || (data.taluka is string && data.taluka.size() <= 80))
+        && (!('village' in data) || (data.village is string && data.village.size() <= 80))
+        && (!('address' in data) || (data.address is string && data.address.size() <= 300))
+        && (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500));
+    }
+
+    function isValidFarm(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmName', 'areaValue', 'areaUnit', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmName', 'satbaraNumber', 'surveyNumber', 'gatNumber', 'village', 'taluka', 'district', 'state', 'areaValue', 'areaUnit', 'soilType', 'waterSource', 'irrigationMethod', 'latitude', 'longitude', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.userId)
+        && data.farmName is string && data.farmName.size() >= 1 && data.farmName.size() <= 120
+        && data.areaValue is number && data.areaValue > 0 && data.areaValue <= 100000
+        && data.areaUnit in ['Acres', 'Hectares', 'Guntha']
+        && (!('satbaraNumber' in data) || (data.satbaraNumber is string && data.satbaraNumber.size() <= 60))
+        && (!('surveyNumber' in data) || (data.surveyNumber is string && data.surveyNumber.size() <= 60))
+        && (!('gatNumber' in data) || (data.gatNumber is string && data.gatNumber.size() <= 60))
+        && (!('village' in data) || (data.village is string && data.village.size() <= 80))
+        && (!('taluka' in data) || (data.taluka is string && data.taluka.size() <= 80))
+        && (!('district' in data) || (data.district is string && data.district.size() <= 80))
+        && (!('state' in data) || (data.state is string && data.state.size() <= 80))
+        && (!('soilType' in data) || (data.soilType is string && data.soilType.size() <= 60))
+        && (!('waterSource' in data) || (data.waterSource is string && data.waterSource.size() <= 80))
+        && (!('irrigationMethod' in data) || (data.irrigationMethod is string && data.irrigationMethod.size() <= 80))
+        && (!('latitude' in data) || data.latitude is number)
+        && (!('longitude' in data) || data.longitude is number);
+    }
+
+    function isValidPlot(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'plotName', 'areaAcres', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'plotName', 'areaAcres', 'assignedCrop', 'soilType', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId)
+        && data.plotName is string && data.plotName.size() >= 1 && data.plotName.size() <= 120
+        && data.areaAcres is number && data.areaAcres > 0 && data.areaAcres <= 10000
+        && (!('assignedCrop' in data) || (data.assignedCrop is string && data.assignedCrop.size() <= 80))
+        && (!('soilType' in data) || (data.soilType is string && data.soilType.size() <= 60));
+    }
+
+    function isValidLandRecord(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'satbaraNumber', 'verificationStatus', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'satbaraNumber', 'surveyNumber', 'gatNumber', 'village', 'taluka', 'district', 'state', 'verificationStatus', 'calculatedAcres', 'geojsonText', 'ocrNotes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId)
+        && data.satbaraNumber is string && data.satbaraNumber.size() >= 1 && data.satbaraNumber.size() <= 60
+        && data.verificationStatus in ['pending_manual', 'verified', 'needs_review']
+        && (!('surveyNumber' in data) || (data.surveyNumber is string && data.surveyNumber.size() <= 60))
+        && (!('gatNumber' in data) || (data.gatNumber is string && data.gatNumber.size() <= 60))
+        && (!('village' in data) || (data.village is string && data.village.size() <= 80))
+        && (!('taluka' in data) || (data.taluka is string && data.taluka.size() <= 80))
+        && (!('district' in data) || (data.district is string && data.district.size() <= 80))
+        && (!('state' in data) || (data.state is string && data.state.size() <= 80))
+        && (!('calculatedAcres' in data) || data.calculatedAcres is number)
+        && (!('geojsonText' in data) || (data.geojsonText is string && data.geojsonText.size() <= 20000))
+        && (!('ocrNotes' in data) || (data.ocrNotes is string && data.ocrNotes.size() <= 2000));
+    }
+
+    function isValidCrop(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'cropName', 'stage', 'healthStatus', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'plotId', 'cropName', 'variety', 'sowingDate', 'expectedHarvestDate', 'cultivationArea', 'season', 'seedQuantityKg', 'stage', 'healthStatus', 'yieldTonnes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId)
+        && data.cropName is string && data.cropName.size() >= 1 && data.cropName.size() <= 80
+        && data.stage is string && data.stage.size() >= 1 && data.stage.size() <= 60
+        && data.healthStatus in ['Healthy', 'Monitor', 'At Risk', 'Harvested']
+        && (!('plotId' in data) || (data.plotId is string && data.plotId.size() <= 128))
+        && (!('variety' in data) || (data.variety is string && data.variety.size() <= 80))
+        && (!('sowingDate' in data) || (data.sowingDate is string && data.sowingDate.size() <= 30))
+        && (!('expectedHarvestDate' in data) || (data.expectedHarvestDate is string && data.expectedHarvestDate.size() <= 30))
+        && (!('cultivationArea' in data) || data.cultivationArea is number)
+        && (!('season' in data) || (data.season is string && data.season.size() <= 40))
+        && (!('seedQuantityKg' in data) || data.seedQuantityKg is number)
+        && (!('yieldTonnes' in data) || data.yieldTonnes is number);
+    }
+
+    function isValidCropActivity(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'cropId', 'stage', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'cropId', 'stage', 'activityDate', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId) && isValidId(data.cropId)
+        && data.stage is string && data.stage.size() >= 1 && data.stage.size() <= 80
+        && (!('activityDate' in data) || (data.activityDate is string && data.activityDate.size() <= 30))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000));
+    }
+
+    function isValidSoilReading(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'source', 'moisture', 'ph', 'nitrogen', 'phosphorus', 'potassium', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'plotId', 'deviceId', 'source', 'moisture', 'temperature', 'humidity', 'ph', 'nitrogen', 'phosphorus', 'potassium', 'ec', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId)
+        && data.source in ['arduino', 'manual', 'simulated']
+        && data.moisture is number && data.moisture >= 0 && data.moisture <= 100
+        && data.ph is number && data.ph >= 0 && data.ph <= 14
+        && data.nitrogen is number && data.phosphorus is number && data.potassium is number
+        && (!('plotId' in data) || (data.plotId is string && data.plotId.size() <= 128))
+        && (!('deviceId' in data) || (data.deviceId is string && data.deviceId.size() <= 80))
+        && (!('temperature' in data) || data.temperature is number)
+        && (!('humidity' in data) || data.humidity is number)
+        && (!('ec' in data) || data.ec is number);
+    }
+
+    function isValidIotDevice(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'deviceId', 'controller', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'deviceId', 'controller', 'status', 'lastSeen', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId)
+        && data.deviceId is string && data.deviceId.size() >= 1 && data.deviceId.size() <= 64
+        && data.controller is string && data.controller.size() >= 1 && data.controller.size() <= 64
+        && data.status in ['online', 'offline', 'simulated']
+        && (!('lastSeen' in data) || (data.lastSeen is string && data.lastSeen.size() <= 40));
+    }
+
+    function isValidDiseaseDetection(data) {
+      return data.keys().hasAll(['id', 'userId', 'cropType', 'predictedDisease', 'confidence', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'cropType', 'predictedDisease', 'confidence', 'engineUsed', 'treatment', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId)
+        && data.cropType is string && data.cropType.size() >= 1 && data.cropType.size() <= 60
+        && data.predictedDisease is string && data.predictedDisease.size() >= 1 && data.predictedDisease.size() <= 120
+        && data.confidence is number && data.confidence >= 0 && data.confidence <= 100
+        && (!('farmId' in data) || (data.farmId is string && data.farmId.size() <= 128))
+        && (!('engineUsed' in data) || (data.engineUsed is string && data.engineUsed.size() <= 80))
+        && (!('treatment' in data) || (data.treatment is string && data.treatment.size() <= 1000));
+    }
+
+    function isValidDamageDetection(data) {
+      return data.keys().hasAll(['id', 'userId', 'damageCategory', 'detectionCount', 'confidence', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'damageCategory', 'detectionCount', 'confidence', 'severity', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId)
+        && data.damageCategory is string && data.damageCategory.size() >= 1 && data.damageCategory.size() <= 120
+        && data.detectionCount is number && data.detectionCount >= 0
+        && data.confidence is number && data.confidence >= 0 && data.confidence <= 100
+        && (!('farmId' in data) || (data.farmId is string && data.farmId.size() <= 128))
+        && (!('severity' in data) || (data.severity is string && data.severity.size() <= 40));
+    }
+
+    function isValidCropRecommendation(data) {
+      return data.keys().hasAll(['id', 'userId', 'recommendedCrop', 'confidence', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'recommendedCrop', 'confidence', 'nitrogen', 'phosphorus', 'potassium', 'ph', 'rainfall', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId)
+        && data.recommendedCrop is string && data.recommendedCrop.size() >= 1 && data.recommendedCrop.size() <= 80
+        && data.confidence is number && data.confidence >= 0 && data.confidence <= 100
+        && (!('farmId' in data) || (data.farmId is string && data.farmId.size() <= 128))
+        && (!('nitrogen' in data) || data.nitrogen is number)
+        && (!('phosphorus' in data) || data.phosphorus is number)
+        && (!('potassium' in data) || data.potassium is number)
+        && (!('ph' in data) || data.ph is number)
+        && (!('rainfall' in data) || data.rainfall is number);
+    }
+
+    function isValidWeatherRecord(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'temperatureC', 'condition', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'temperatureC', 'humidity', 'windSpeedKmh', 'rainProbabilityPct', 'condition', 'source', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId)
+        && data.temperatureC is number
+        && data.condition is string && data.condition.size() >= 1 && data.condition.size() <= 80
+        && (!('humidity' in data) || data.humidity is number)
+        && (!('windSpeedKmh' in data) || data.windSpeedKmh is number)
+        && (!('rainProbabilityPct' in data) || data.rainProbabilityPct is number)
+        && (!('source' in data) || (data.source is string && data.source.size() <= 120));
+    }
+
+    function isValidIrrigationRecord(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'method', 'waterLiters', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'method', 'waterLiters', 'durationMinutes', 'scheduledDate', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId)
+        && data.method is string && data.method.size() >= 1 && data.method.size() <= 60
+        && data.waterLiters is number && data.waterLiters >= 0
+        && data.status in ['scheduled', 'completed', 'cancelled']
+        && (!('durationMinutes' in data) || data.durationMinutes is number)
+        && (!('scheduledDate' in data) || (data.scheduledDate is string && data.scheduledDate.size() <= 30));
+    }
+
+    function isValidFertilizerRecord(data) {
+      return data.keys().hasAll(['id', 'userId', 'farmId', 'productName', 'category', 'costInr', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'productName', 'category', 'quantity', 'applicationDate', 'applicationMethod', 'cropName', 'costInr', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId) && isValidId(data.farmId)
+        && data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 120
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 60
+        && data.costInr is number && data.costInr >= 0
+        && (!('quantity' in data) || (data.quantity is string && data.quantity.size() <= 40))
+        && (!('applicationDate' in data) || (data.applicationDate is string && data.applicationDate.size() <= 30))
+        && (!('applicationMethod' in data) || (data.applicationMethod is string && data.applicationMethod.size() <= 80))
+        && (!('cropName' in data) || (data.cropName is string && data.cropName.size() <= 80))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['id', 'userId', 'category', 'severity', 'title', 'read', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'category', 'severity', 'title', 'message', 'read', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId)
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 60
+        && data.severity in ['info', 'warning', 'critical']
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.read is bool
+        && (!('farmId' in data) || (data.farmId is string && data.farmId.size() <= 128))
+        && (!('message' in data) || (data.message is string && data.message.size() <= 600));
+    }
+
+    function isValidBlockchainRecord(data) {
+      return data.keys().hasAll(['id', 'userId', 'documentType', 'documentTitle', 'sha256Hash', 'txHash', 'verified', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'documentType', 'documentTitle', 'sha256Hash', 'txHash', 'networkMode', 'verified', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId)
+        && data.documentType is string && data.documentType.size() >= 1 && data.documentType.size() <= 80
+        && data.documentTitle is string && data.documentTitle.size() >= 1 && data.documentTitle.size() <= 160
+        && data.sha256Hash is string && data.sha256Hash.matches('^[a-f0-9]{64}$')
+        && data.txHash is string && data.txHash.size() >= 10 && data.txHash.size() <= 128
+        && data.verified is bool
+        && (!('farmId' in data) || (data.farmId is string && data.farmId.size() <= 128))
+        && (!('networkMode' in data) || (data.networkMode is string && data.networkMode.size() <= 60));
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['id', 'userId', 'reportType', 'title', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'farmId', 'reportType', 'title', 'createdAt', 'updatedAt'])
+        && isValidId(data.id) && isValidId(data.userId)
+        && data.reportType is string && data.reportType.size() >= 1 && data.reportType.size() <= 60
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && (!('farmId' in data) || (data.farmId is string && data.farmId.size() <= 128));
+    }
+
+    // --- Collection Rules ---
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list, create, update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isVerified() && isValidId(userId) && isOwner(userId)
+        && isValidUser(incoming()) && incoming().uid == userId
+        && (incoming().role == 'farmer' || isAdmin())
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(userId) && isValidUser(incoming())
+        && incoming().uid == existing().uid && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (
+          isOwner(userId)
+          && incoming().role == existing().role
+          && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'mobile', 'state', 'district', 'taluka', 'village', 'address', 'photoUrl', 'updatedAt'])
+        ));
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    match /farms/{farmId} {
+      allow get: if isSignedIn() && isValidId(farmId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(farmId) && isValidFarm(incoming())
+        && incoming().id == farmId && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(farmId) && isValidFarm(incoming())
+        && incoming().id == existing().id && incoming().userId == existing().userId && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (
+          existing().userId == request.auth.uid
+          && incoming().diff(existing()).affectedKeys().hasOnly(['farmName', 'satbaraNumber', 'surveyNumber', 'gatNumber', 'village', 'taluka', 'district', 'state', 'areaValue', 'areaUnit', 'soilType', 'waterSource', 'irrigationMethod', 'latitude', 'longitude', 'updatedAt'])
+        ));
+      allow delete: if isVerified() && isValidId(farmId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /plots/{plotId} {
+      allow get: if isSignedIn() && isValidId(plotId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(plotId) && isValidPlot(incoming())
+        && incoming().id == plotId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(plotId) && isValidPlot(incoming())
+        && incoming().id == existing().id && incoming().userId == existing().userId && incoming().farmId == existing().farmId && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['plotName', 'areaAcres', 'assignedCrop', 'soilType', 'updatedAt'])));
+      allow delete: if isVerified() && isValidId(plotId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /landRecords/{recordId} {
+      allow get: if isSignedIn() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(recordId) && isValidLandRecord(incoming())
+        && incoming().id == recordId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(recordId) && isValidLandRecord(incoming())
+        && incoming().id == existing().id && incoming().userId == existing().userId && incoming().farmId == existing().farmId && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['satbaraNumber', 'surveyNumber', 'gatNumber', 'village', 'taluka', 'district', 'state', 'verificationStatus', 'calculatedAcres', 'geojsonText', 'ocrNotes', 'updatedAt'])));
+      allow delete: if isVerified() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /crops/{cropId} {
+      allow get: if isSignedIn() && isValidId(cropId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(cropId) && isValidCrop(incoming())
+        && incoming().id == cropId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(cropId) && isValidCrop(incoming())
+        && incoming().id == existing().id && incoming().userId == existing().userId && incoming().farmId == existing().farmId && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (existing().userId == request.auth.uid && existing().healthStatus != 'Harvested' && incoming().diff(existing()).affectedKeys().hasOnly(['stage', 'healthStatus', 'yieldTonnes', 'expectedHarvestDate', 'updatedAt'])));
+      allow delete: if isVerified() && isValidId(cropId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /cropActivities/{activityId} {
+      allow get: if isSignedIn() && isValidId(activityId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(activityId) && isValidCropActivity(incoming())
+        && incoming().id == activityId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(activityId) && isValidCropActivity(incoming())
+        && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isVerified() && isValidId(activityId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /soilReadings/{readingId} {
+      allow get: if isSignedIn() && isValidId(readingId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(readingId) && isValidSoilReading(incoming())
+        && incoming().id == readingId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(readingId) && isValidSoilReading(incoming())
+        && incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isVerified() && isValidId(readingId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /iotDevices/{deviceId} {
+      allow get: if isSignedIn() && isValidId(deviceId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(deviceId) && isValidIotDevice(incoming())
+        && incoming().id == deviceId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(deviceId) && isValidIotDevice(incoming())
+        && incoming().id == existing().id && incoming().userId == existing().userId && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'lastSeen', 'updatedAt'])));
+      allow delete: if isVerified() && isValidId(deviceId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /diseaseDetections/{detectionId} {
+      allow get: if isSignedIn() && isValidId(detectionId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(detectionId) && isValidDiseaseDetection(incoming())
+        && incoming().id == detectionId && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(detectionId) && isValidDiseaseDetection(incoming());
+      allow delete: if isVerified() && isValidId(detectionId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /damageDetections/{detectionId} {
+      allow get: if isSignedIn() && isValidId(detectionId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(detectionId) && isValidDamageDetection(incoming())
+        && incoming().id == detectionId && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(detectionId) && isValidDamageDetection(incoming());
+      allow delete: if isVerified() && isValidId(detectionId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /cropRecommendations/{recommendationId} {
+      allow get: if isSignedIn() && isValidId(recommendationId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(recommendationId) && isValidCropRecommendation(incoming())
+        && incoming().id == recommendationId && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(recommendationId) && isValidCropRecommendation(incoming());
+      allow delete: if isVerified() && isValidId(recommendationId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /weatherRecords/{recordId} {
+      allow get: if isSignedIn() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(recordId) && isValidWeatherRecord(incoming())
+        && incoming().id == recordId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(recordId) && isValidWeatherRecord(incoming());
+      allow delete: if isVerified() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /irrigationRecords/{recordId} {
+      allow get: if isSignedIn() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(recordId) && isValidIrrigationRecord(incoming())
+        && incoming().id == recordId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(recordId) && isValidIrrigationRecord(incoming())
+        && incoming().id == existing().id && incoming().userId == existing().userId && incoming().farmId == existing().farmId && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (existing().userId == request.auth.uid && existing().status == 'scheduled' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'waterLiters', 'durationMinutes', 'updatedAt'])));
+      allow delete: if isVerified() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /fertilizerRecords/{recordId} {
+      allow get: if isSignedIn() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(recordId) && isValidFertilizerRecord(incoming())
+        && incoming().id == recordId && incoming().userId == request.auth.uid
+        && ownsFarm(incoming().farmId)
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(recordId) && isValidFertilizerRecord(incoming());
+      allow delete: if isVerified() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(notificationId) && isValidNotification(incoming())
+        && incoming().id == notificationId && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(notificationId) && isValidNotification(incoming())
+        && incoming().id == existing().id && incoming().userId == existing().userId && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt'])));
+      allow delete: if isVerified() && isValidId(notificationId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /blockchainRecords/{recordId} {
+      allow get: if isSignedIn() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(recordId) && isValidBlockchainRecord(incoming())
+        && incoming().id == recordId && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(recordId) && isValidBlockchainRecord(incoming());
+      allow delete: if isVerified() && isValidId(recordId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    match /reports/{reportId} {
+      allow get: if isSignedIn() && isValidId(reportId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isVerified() && isValidId(reportId) && isValidReport(incoming())
+        && incoming().id == reportId && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(reportId) && isValidReport(incoming());
+      allow delete: if isVerified() && isValidId(reportId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+  }
+}

@@ -1,11 +1,21 @@
-<div align="center">
+# AgriVision AI — Agricultural Monitoring & Blockchain Verification
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Full-stack precision agriculture platform featuring Maharashtra 7/12 land registration, Leaflet satellite boundary mapping, Arduino Uno/Mega IoT soil telemetry, CNN disease classification, YOLOv8 crop damage detection, Random Forest crop recommendation, real-time weather advisories, and SHA-256 blockchain document verification.
 
-  <h1>Built with AI Studio</h2>
+## Run Web Application (Express + React + Firebase)
+```bash
+npm install
+npm run dev
+```
+Server listens on `http://localhost:3000`.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Run Unit Tests
+```bash
+npx --yes tsx --test src/utils/agriMath.test.ts
+```
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
-
-</div>
+## Optional Companion Services
+- **Arduino Simulator**: `python3 arduino/simulator.py --url http://localhost:3000/api/iot/telemetry --count 3`
+- **Arduino Firmware**: Flash `arduino/agrivision.ino` to Arduino Uno/Mega with DHT22, Soil Moisture, pH, RS485 NPK, and ESP8266 AT bridge.
+- **Python FastAPI ML Service**: Install `ai-backend/requirements.txt` and launch `uvicorn main:app --port 8000` inside `ai-backend/`, then set `AI_BACKEND_URL=http://localhost:8000`.
+- **Smart Contract**: Deploy `blockchain/AgriVision.sol` (`^0.8.19`) to an EVM testnet/RPC.
